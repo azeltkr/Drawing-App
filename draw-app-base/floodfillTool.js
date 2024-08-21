@@ -1,56 +1,83 @@
 function FloodFillTool() {
-  //Set icon and name for the tool
   this.icon = "assets/fill.jpg";
   this.name = "floodfilltool";
 
-  //Function to handle the mpuse press event (trigger flood fill)
-  this.mousePressed = function () {
-    if (mouseOnCanvas(canvas)) {
-      floodFill(mouseX, mouseY, colourP.selectedColour);
-    }
-  };
-
   this.draw = function () {};
 
-  //Flood fill algorithm
-  function floodFill(x, y, fillColour) {
-    let targetColour = get(x, y);
-
-    if (coloursMatch(targetColour, fillColour)) {
-      return; //Checks if colour of canvas where mouse is on matches the current selected colour from the palette (exit early)
+  this.mousePressed = function () {
+    if (!colourP || !colourP.selectedColour) {
+      console.error("No selected color in ColourPalette.");
+      return;
     }
 
-    let pixelStack = [[x, y]];
-    while (pixelStack.length > 0) {
-      let newPos = pixelStack.pop();
-      let x = newPos[0];
-      let y = newPos[1];
+    if (mouseX < 0 || mouseX >= width || mouseY < 0 || mouseY >= height) {
+      return;
+    }
 
-      let currentColour = get(x, y);
-      if (coloursMatch(currentColour, targetColour)) {
-        set(x, y, fillColour);
+    let fillColor = colorToRGBA(colourP.selectedColour);
+    let seed = createVector(floor(mouseX), floor(mouseY));
 
-        pixelStack.push([x + 1, y]); //fill to the east
-        pixelStack.push([x - 1, y]); //fill to the west
-        pixelStack.push([x, y + 1]); //fill to the south
-        pixelStack.push([x, y - 1]); //fill to the north
+    floodFill(seed, fillColor);
+  };
+
+  function floodFill(seed, fillColor) {
+    loadPixels();
+
+    let seedColor = getColorAt(seed);
+
+    if (!arrayEquals(seedColor, fillColor)) {
+      let queue = [seed];
+
+      while (queue.length) {
+        let current = queue.shift();
+        let currentColor = getColorAt(current);
+
+        if (!arrayEquals(currentColor, seedColor)) {
+          continue;
+        }
+
+        setColorAt(current, fillColor);
+        queue.push(...getNeighbors(current));
       }
+
+      updatePixels();
     }
-    updatePixels(); //Apply flood fill changes to the canvas display
   }
 
-  //helper function to compare colours
-  function coloursMatch(a, b) {
-    return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+  function getColorAt(v) {
+    let index = 4 * (width * v.y + v.x);
+    return [
+      pixels[index],
+      pixels[index + 1],
+      pixels[index + 2],
+      pixels[index + 3],
+    ];
   }
 
-  //helper function to check if the mouse pointer is within canvas
-  function mouseOnCanvas(canvas) {
-    return (
-      mouseX >= 0 &&
-      mouseX <= canvas.width &&
-      mouseY >= 0 &&
-      mouseY <= canvas.height
-    );
+  function setColorAt(v, color) {
+    let index = 4 * (width * v.y + v.x);
+    pixels[index] = color[0];
+    pixels[index + 1] = color[1];
+    pixels[index + 2] = color[2];
+    pixels[index + 3] = color[3];
+  }
+
+  function getNeighbors(v) {
+    let { x, y } = v;
+    let neighbors = [];
+    if (x > 0) neighbors.push(createVector(x - 1, y));
+    if (x < width - 1) neighbors.push(createVector(x + 1, y));
+    if (y > 0) neighbors.push(createVector(x, y - 1));
+    if (y < height - 1) neighbors.push(createVector(x, y + 1));
+    return neighbors;
+  }
+
+  function arrayEquals(a, b) {
+    return a.length === b.length && a.every((val, i) => val === b[i]);
+  }
+
+  function colorToRGBA(colorString) {
+    let c = color(colorString);
+    return [red(c), green(c), blue(c), alpha(c)];
   }
 }
